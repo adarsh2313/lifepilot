@@ -1,0 +1,39 @@
+# User data — never commit
+lifepilot.db
+config.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ipynb_checkpoints/
+*.egg-info/
+.eggs/
+dist/
+build/
+*.so
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Node / Electron
+node_modules/
+electron/dist/
+electron/renderer/dist/
+
+# Model weights (downloaded on first run, large)
+models/
+
+# macOS
+.DS_Store
+.AppleDouble
+
+# Env files
+.env
+.env.*
+
+# Conda
+*.conda
+
+# VS Code
+.vscode/
