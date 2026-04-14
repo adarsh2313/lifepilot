@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from typing import Literal
 
 from pydantic import BaseModel, field_validator
@@ -60,12 +60,23 @@ class GoalProgress(BaseModel):
 
 # ── CRUD ──────────────────────────────────────────────────────────────────────
 
+def _auto_period(horizon: str) -> str | None:
+    """Auto-generate period string for weekly/monthly goals."""
+    today = date.today()
+    if horizon == "weekly":
+        return today.strftime("%G-W%V")   # ISO week, e.g. "2025-W16"
+    if horizon == "monthly":
+        return today.strftime("%Y-%m")    # e.g. "2025-04"
+    return None
+
+
 def create_goal(db: DBSession, payload: GoalCreate) -> Goal:
+    period = payload.period or _auto_period(payload.horizon)
     goal = Goal(
         text=payload.text,
         horizon=payload.horizon,
         due_date=payload.due_date,
-        period=payload.period,
+        period=period,
         active=True,
         progress="not_started",
         version=1,
@@ -136,6 +147,8 @@ def update_goal_progress(db: DBSession, goal_id: int, progress: str) -> Goal:
         raise ValueError(f"Active goal {goal_id} not found")
     goal.progress = progress
     goal.updated_at = datetime.utcnow()
+    if progress == "dropped":
+        goal.active = False
     db.commit()
     db.refresh(goal)
     return goal

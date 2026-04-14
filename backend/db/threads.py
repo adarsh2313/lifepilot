@@ -51,7 +51,17 @@ def get_open_threads(db: DBSession) -> list[Thread]:
     )
 
 
-def surface_threads(db: DBSession, limit: int = 5) -> list[dict]:
-    """Returns open threads as dicts for LLM context."""
+def get_threads_for_goal(db: DBSession, goal_id: int) -> list[Thread]:
+    """All threads (open and resolved) for a specific goal, newest first."""
+    return (
+        db.query(Thread)
+        .filter(Thread.goal_id == goal_id)
+        .order_by(Thread.created_at.desc())
+        .all()
+    )
+
+
+def surface_threads(db: DBSession, limit: int = 10) -> list[dict]:
+    """Returns open threads as dicts for LLM context, grouped by goal_id."""
     threads = get_open_threads(db)[:limit]
     return [{"id": t.id, "text": t.text, "goal_id": t.goal_id} for t in threads]

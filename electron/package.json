@@ -4,9 +4,9 @@
   "description": "LifePilot — personal AI coach",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
+    "start": "env -u ELECTRON_RUN_AS_NODE ./node_modules/electron/dist/Electron.app/Contents/MacOS/Electron .",
     "dev": "concurrently \"npm run dev:renderer\" \"npm run dev:electron\"",
-    "dev:electron": "wait-on tcp:127.0.0.1:5173 -t 30000 && ./node_modules/.bin/electron .",
+    "dev:electron": "wait-on tcp:127.0.0.1:5173 -t 30000 && env -u ELECTRON_RUN_AS_NODE ./node_modules/electron/dist/Electron.app/Contents/MacOS/Electron .",
     "dev:renderer": "cd renderer && npm run dev",
     "build": "cd renderer && npm run build",
     "package": "npm run build && electron-builder"

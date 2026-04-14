@@ -22,6 +22,9 @@ function getApi() {
     createGoal: (payload) => apiFetch('/goals', { method: 'POST', body: JSON.stringify(payload) }),
     updateGoal: (id, text) => apiFetch(`/goals/${id}`, { method: 'PUT', body: JSON.stringify({ text }) }),
     updateProgress: (id, progress) => apiFetch(`/goals/${id}/progress`, { method: 'PATCH', body: JSON.stringify({ progress }) }),
+    getThreads: (goalId) => apiFetch(`/goals/${goalId}/threads`),
+    addThread: (goalId, text) => apiFetch(`/goals/${goalId}/threads`, { method: 'POST', body: JSON.stringify({ text }) }),
+    resolveThread: (goalId, threadId) => apiFetch(`/goals/${goalId}/threads/${threadId}/resolve`, { method: 'PATCH' }),
   }
 }
 
@@ -163,6 +166,7 @@ const styles = {
 export default function Goals() {
   const api = useMemo(() => getApi(), [])
   const [goals, setGoals] = useState([])
+  const [threads, setThreads] = useState({}) // { [goalId]: Thread[] }
   const [loading, setLoading] = useState(true)
   const [backendDown, setBackendDown] = useState(false)
   const [backendError, setBackendError] = useState('')
@@ -173,19 +177,34 @@ export default function Goals() {
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const loadThreadsForGoals = useCallback(async (goalList) => {
+    const entries = await Promise.all(
+      goalList.map(async (g) => {
+        try {
+          const data = await api.getThreads(g.id)
+          return [g.id, data]
+        } catch {
+          return [g.id, []]
+        }
+      })
+    )
+    setThreads(Object.fromEntries(entries))
+  }, [api])
+
   const loadGoals = useCallback(async () => {
     try {
       const data = await api.getGoals()
       setGoals(data)
       setBackendDown(false)
       setBackendError('')
+      await loadThreadsForGoals(data)
     } catch (err) {
       setBackendDown(true)
       setBackendError(err?.message || 'Could not connect to backend')
     } finally {
       setLoading(false)
     }
-  }, [api])
+  }, [api, loadThreadsForGoals])
 
   useEffect(() => { loadGoals() }, [loadGoals])
   useEffect(() => {
@@ -231,10 +250,38 @@ export default function Goals() {
   async function handleProgress(id, progress) {
     try {
       await api.updateProgress(id, progress)
-      // Optimistic update
-      setGoals((prev) => prev.map((g) => g.id === id ? { ...g, progress } : g))
+      if (progress === 'dropped') {
+        // Goal is now inactive — remove from list
+        setGoals((prev) => prev.filter((g) => g.id !== id))
+      } else {
+        setGoals((prev) => prev.map((g) => g.id === id ? { ...g, progress } : g))
+      }
     } catch (err) {
       console.error('Progress update failed:', err)
+    }
+  }
+
+  async function handleAddThread(goalId, text) {
+    try {
+      const thread = await api.addThread(goalId, text)
+      setThreads((prev) => ({
+        ...prev,
+        [goalId]: [thread, ...(prev[goalId] || [])],
+      }))
+    } catch (err) {
+      console.error('Add thread failed:', err)
+    }
+  }
+
+  async function handleResolveThread(goalId, threadId) {
+    try {
+      const updated = await api.resolveThread(goalId, threadId)
+      setThreads((prev) => ({
+        ...prev,
+        [goalId]: (prev[goalId] || []).map((t) => t.id === threadId ? updated : t),
+      }))
+    } catch (err) {
+      console.error('Resolve thread failed:', err)
     }
   }
 
@@ -262,7 +309,9 @@ export default function Goals() {
           <div style={styles.section}>
             <span style={styles.sectionLabel}>Weekly</span>
             {weekly.map((g) => (
-              <GoalCard key={g.id} goal={g} onUpdate={handleUpdate} onProgressChange={handleProgress} />
+              <GoalCard key={g.id} goal={g} threads={threads[g.id] || []}
+                onUpdate={handleUpdate} onProgressChange={handleProgress}
+                onAddThread={handleAddThread} onResolveThread={handleResolveThread} />
             ))}
           </div>
         )}
@@ -271,7 +320,9 @@ export default function Goals() {
           <div style={styles.section}>
             <span style={styles.sectionLabel}>Monthly</span>
             {monthly.map((g) => (
-              <GoalCard key={g.id} goal={g} onUpdate={handleUpdate} onProgressChange={handleProgress} />
+              <GoalCard key={g.id} goal={g} threads={threads[g.id] || []}
+                onUpdate={handleUpdate} onProgressChange={handleProgress}
+                onAddThread={handleAddThread} onResolveThread={handleResolveThread} />
             ))}
           </div>
         )}
@@ -280,7 +331,9 @@ export default function Goals() {
           <div style={styles.section}>
             <span style={styles.sectionLabel}>Custom</span>
             {custom.map((g) => (
-              <GoalCard key={g.id} goal={g} onUpdate={handleUpdate} onProgressChange={handleProgress} />
+              <GoalCard key={g.id} goal={g} threads={threads[g.id] || []}
+                onUpdate={handleUpdate} onProgressChange={handleProgress}
+                onAddThread={handleAddThread} onResolveThread={handleResolveThread} />
             ))}
           </div>
         )}

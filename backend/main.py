@@ -7,13 +7,18 @@ from pydantic import BaseModel
 from backend.config import get_config
 from backend.db.database import create_tables
 from backend.llm.factory import get_provider
+from backend.routers import audio as audio_router
+from backend.routers import calendar as calendar_router
 from backend.routers import goals as goals_router
+from backend.routers import sessions as sessions_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()
     yield
+    # Clean shutdown — release thread pool to avoid semaphore leak warnings
+    audio_router._executor.shutdown(wait=False)
 
 
 app = FastAPI(title="LifePilot", lifespan=lifespan)
@@ -26,6 +31,9 @@ app.add_middleware(
 )
 
 app.include_router(goals_router.router)
+app.include_router(sessions_router.router)
+app.include_router(audio_router.router)
+app.include_router(calendar_router.router)
 
 
 @app.get("/health")
