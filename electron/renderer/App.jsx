@@ -64,10 +64,10 @@ const styles = {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('Goals')
-  const [sessionOpen, setSessionOpen] = useState(false)
+  const [sessionType, setSessionType] = useState(null)  // null = closed
 
-  if (sessionOpen) {
-    return <SessionOverlay onClose={() => setSessionOpen(false)} />
+  if (sessionType) {
+    return <SessionOverlay sessionType={sessionType} onClose={() => setSessionType(null)} />
   }
 
   return (
@@ -87,9 +87,14 @@ export default function App() {
       </div>
 
       <div style={styles.footer}>
-        <button style={styles.checkinBtn} onClick={() => setSessionOpen(true)}>
-          Evening Check-in
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button style={styles.checkinBtn} onClick={() => setSessionType('morning')}>
+            Morning Briefing
+          </button>
+          <button style={styles.checkinBtn} onClick={() => setSessionType('evening')}>
+            Evening Check-in
+          </button>
+        </div>
       </div>
     </div>
   )

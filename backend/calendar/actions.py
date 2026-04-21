@@ -13,7 +13,7 @@ delete  — remove an event
 from typing import Literal, Optional
 from pydantic import BaseModel
 
-from backend.calendar import applescript
+from backend.calendar import provider as cal_provider
 
 
 class CalendarAction(BaseModel):
@@ -31,7 +31,7 @@ def execute_action(action: CalendarAction) -> dict:
     if action.action == "create":
         if not action.calendar_name or not action.title or not action.start_iso or not action.end_iso:
             raise ValueError("create requires calendar_name, title, start_iso, end_iso")
-        uid = applescript.create_event(
+        uid = cal_provider.create_event(
             calendar_name=action.calendar_name,
             title=action.title,
             start_iso=action.start_iso,
@@ -43,7 +43,7 @@ def execute_action(action: CalendarAction) -> dict:
     elif action.action == "move":
         if not action.uid or not action.start_iso or not action.end_iso:
             raise ValueError("move requires uid, start_iso, end_iso")
-        applescript.move_event(
+        cal_provider.move_event(
             uid=action.uid,
             new_start_iso=action.start_iso,
             new_end_iso=action.end_iso,
@@ -53,7 +53,7 @@ def execute_action(action: CalendarAction) -> dict:
     elif action.action == "delete":
         if not action.uid:
             raise ValueError("delete requires uid")
-        applescript.delete_event(uid=action.uid)
+        cal_provider.delete_event(uid=action.uid)
         return {"status": "deleted", "uid": action.uid}
 
     else:

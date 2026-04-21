@@ -91,7 +91,7 @@ const s = {
   summaryTitle: { fontWeight: 600, marginBottom: 6, fontSize: 13 },
 }
 
-export default function SessionOverlay({ onClose }) {
+export default function SessionOverlay({ onClose, sessionType = 'evening' }) {
   const [sessionId, setSessionId] = useState(null)
   const [messages, setMessages]   = useState([])
   const [input, setInput]         = useState('')
@@ -114,7 +114,10 @@ export default function SessionOverlay({ onClose }) {
   // Start coaching session on mount
   useEffect(() => {
     let cancelled = false
-    apiFetch('/session/start', { method: 'POST' })
+    apiFetch('/session/start', {
+        method: 'POST',
+        body: JSON.stringify({ session_type: sessionType }),
+      })
       .then(data => {
         if (cancelled) return
         setSessionId(data.session_id)
@@ -349,7 +352,7 @@ export default function SessionOverlay({ onClose }) {
   return (
     <div style={s.overlay}>
       <div style={s.header}>
-        <span style={s.title}>Evening Check-in</span>
+        <span style={s.title}>{sessionType === 'morning' ? 'Morning Briefing' : 'Evening Check-in'}</span>
         {sessionId && (
           <button style={s.endBtn} onClick={handleEnd} disabled={ending}>
             {ending ? 'Saving…' : 'End Session'}

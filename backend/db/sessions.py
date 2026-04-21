@@ -46,3 +46,34 @@ def get_sessions_for_date(db: DBSession, target_date: str) -> list[SessionModel]
         .order_by(SessionModel.created_at)
         .all()
     )
+
+
+def get_recent_sessions(db: DBSession, limit: int = 7) -> list[dict]:
+    """Return the last `limit` sessions as compact dicts for LLM context.
+
+    Each dict contains:
+      date, session_type, one_line_summary, goal_updates (list of {goal_id, text, new_progress})
+    """
+    rows = (
+        db.query(SessionModel)
+        .order_by(SessionModel.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    result = []
+    for row in reversed(rows):   # oldest first so the stack reads chronologically
+        entry: dict = {
+            "date": row.date,
+            "session_type": row.session_type,
+            "one_line_summary": None,
+            "goal_updates": [],
+        }
+        if row.summary:
+            try:
+                data = json.loads(row.summary)
+                entry["one_line_summary"] = data.get("one_line_summary")
+                entry["goal_updates"] = data.get("goal_updates") or []
+            except (json.JSONDecodeError, AttributeError):
+                entry["one_line_summary"] = str(row.summary)[:120]
+        result.append(entry)
+    return result

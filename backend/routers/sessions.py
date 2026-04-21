@@ -6,26 +6,32 @@ one active session at a time is the expected usage pattern.
 """
 
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DBSession
 
 from backend.coach.evening import start_session, chat_turn, end_session
+from backend.coach.morning import start_morning_session, chat_turn as morning_chat_turn, end_morning_session
 from backend.db.database import get_db
 
 router = APIRouter(prefix="/session", tags=["session"])
 
-# In-memory session store: {session_id: {system, history, context}}
+# In-memory session store: {session_id: {system, history, context, session_type}}
 _active_sessions: dict[str, dict[str, Any]] = {}
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
 
+class StartRequest(BaseModel):
+    session_type: Literal["evening", "morning"] = "evening"
+
+
 class StartResponse(BaseModel):
     session_id: str
     message: str          # opening coach message
+    session_type: str
 
 
 class ChatRequest(BaseModel):
@@ -48,12 +54,21 @@ class EndResponse(BaseModel):
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @router.post("/start", response_model=StartResponse)
-async def session_start(db: DBSession = Depends(get_db)):
-    """Start a new evening check-in session."""
-    state = await start_session(db)
+async def session_start(req: StartRequest, db: DBSession = Depends(get_db)):
+    """Start a new coaching session (evening or morning)."""
+    if req.session_type == "morning":
+        state = await start_morning_session(db)
+    else:
+        state = await start_session(db)
+
     session_id = str(uuid.uuid4())
+    state["session_type"] = req.session_type
     _active_sessions[session_id] = state
-    return StartResponse(session_id=session_id, message=state["opening_message"])
+    return StartResponse(
+        session_id=session_id,
+        message=state["opening_message"],
+        session_type=req.session_type,
+    )
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -73,16 +88,23 @@ async def session_chat(req: ChatRequest):
 
 @router.post("/end", response_model=EndResponse)
 async def session_end(req: EndRequest, db: DBSession = Depends(get_db)):
-    """End the session: generate summary, save to DB, write journal file."""
+    """End the session: generate summary, save to DB."""
     state = _active_sessions.pop(req.session_id, None)
     if state is None:
         raise HTTPException(status_code=404, detail="Session not found or already ended.")
 
-    summary = await end_session(
-        db=db,
-        history=state["history"],
-        context=state["context"],
-    )
+    if state.get("session_type") == "morning":
+        summary = await end_morning_session(
+            db=db,
+            history=state["history"],
+            context=state["context"],
+        )
+    else:
+        summary = await end_session(
+            db=db,
+            history=state["history"],
+            context=state["context"],
+        )
     return EndResponse(summary=summary)
 
 

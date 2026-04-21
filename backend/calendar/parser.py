@@ -45,17 +45,20 @@ class DaySchedule(BaseModel):
 
 
 def parse_events(raw_events: list[dict]) -> list[CalendarEvent]:
-    """Convert raw dicts from applescript.get_events() into CalendarEvent models."""
+    """Convert raw dicts into CalendarEvent models.
+
+    Strips timezone info from datetimes so naive comparisons work throughout.
+    """
     result = []
     for e in raw_events:
-        start_dt = datetime.fromisoformat(e["start"])
-        end_dt   = datetime.fromisoformat(e["end"])
+        start_dt = datetime.fromisoformat(e["start"]).replace(tzinfo=None)
+        end_dt   = datetime.fromisoformat(e["end"]).replace(tzinfo=None)
         duration = max(0, int((end_dt - start_dt).total_seconds() / 60))
         result.append(CalendarEvent(
             uid=e["uid"],
             title=e["title"],
-            start=e["start"],
-            end=e["end"],
+            start=start_dt.isoformat(),
+            end=end_dt.isoformat(),
             all_day=e["all_day"],
             calendar=e["calendar"],
             notes=e.get("notes", ""),

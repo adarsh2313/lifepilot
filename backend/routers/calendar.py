@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, HTTPException
 
-from backend.calendar import applescript
+from backend.calendar import provider as cal_provider
 from backend.calendar.parser import build_day_schedule, DaySchedule
 from backend.calendar.actions import CalendarAction, execute_action
 
@@ -21,11 +21,9 @@ router = APIRouter(prefix="/calendar", tags=["calendar"])
 
 def _get_schedule(date_str: str) -> DaySchedule:
     try:
-        raw = applescript.get_events(date_str)
-    except RuntimeError as e:
+        raw = cal_provider.get_events(date_str)
+    except Exception as e:
         logger.exception("Calendar read failed for %s", date_str)
-        # Common cause: backend launched via `conda run` loses macOS GUI session
-        # context needed for AppleScript. Use `conda activate` + `uvicorn` instead.
         raise HTTPException(status_code=503, detail=f"Calendar unavailable: {e}")
     return build_day_schedule(raw, date_str)
 
