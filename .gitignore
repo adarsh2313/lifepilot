@@ -1,6 +1,8 @@
 # User data — never commit
 lifepilot.db
 config.json
+google_credentials.json
+google_client_secret.json
 
 # Python
 __pycache__/
